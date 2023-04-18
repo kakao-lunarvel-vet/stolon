@@ -192,7 +192,7 @@ func testInitExisting(t *testing.T, merge bool) {
 		SleepInterval:      &cluster.Duration{Duration: 2 * time.Second},
 		FailInterval:       &cluster.Duration{Duration: 5 * time.Second},
 		ConvergenceTimeout: &cluster.Duration{Duration: 30 * time.Second},
-		PGParameters: pgParametersWithDefaults(cluster.PGParameters{
+		PGParameters: pgParametersWithDefaults(cluster.DBMSParameters{
 			"archive_mode": "on",
 		}),
 	}

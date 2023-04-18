@@ -18,15 +18,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/sorintlab/stolon/internal/dbmgr"
 	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	pgmocks "github.com/sorintlab/stolon/internal/mock/postgresql"
-	pg "github.com/sorintlab/stolon/internal/postgresql"
-
 	"github.com/sorintlab/stolon/internal/cluster"
 	"github.com/sorintlab/stolon/internal/common"
+	pgmocks "github.com/sorintlab/stolon/internal/mock/postgresql"
 )
 
 func TestParseSynchronousStandbyNames(t *testing.T) {
@@ -253,7 +252,7 @@ func TestGenerateHBA(t *testing.T) {
 
 func TestGetTimeLinesHistory(t *testing.T) {
 	t.Run("should return empty if timelineID is not greater than 1", func(t *testing.T) {
-		pgState := &cluster.PostgresState{
+		pgState := &cluster.DBMSState{
 			TimelineID: 1,
 		}
 
@@ -269,7 +268,7 @@ func TestGetTimeLinesHistory(t *testing.T) {
 
 	t.Run("should return error if there is error in getting timeline history", func(t *testing.T) {
 		var timelineID uint64 = 2
-		pgState := &cluster.PostgresState{
+		pgState := &cluster.DBMSState{
 			TimelineID: timelineID,
 		}
 
@@ -277,7 +276,7 @@ func TestGetTimeLinesHistory(t *testing.T) {
 		defer ctrl.Finish()
 
 		pgm := pgmocks.NewMockPGManager(ctrl)
-		pgm.EXPECT().GetTimelinesHistory(timelineID).Return([]*pg.TimelineHistory{}, fmt.Errorf("failed to get timeline history"))
+		pgm.EXPECT().GetTimelinesHistory(timelineID).Return([]*dbmgr.TimelineHistory{}, fmt.Errorf("failed to get timeline history"))
 		ctlsh, err := getTimeLinesHistory(pgState, pgm, 3)
 
 		if err == nil {
@@ -293,7 +292,7 @@ func TestGetTimeLinesHistory(t *testing.T) {
 
 	t.Run("should return timeline history as is if the given length is less than maxPostgresTimelinesHistory", func(t *testing.T) {
 		var timelineID uint64 = 2
-		pgState := &cluster.PostgresState{
+		pgState := &cluster.DBMSState{
 			TimelineID: timelineID,
 		}
 
@@ -301,7 +300,7 @@ func TestGetTimeLinesHistory(t *testing.T) {
 		defer ctrl.Finish()
 
 		pgm := pgmocks.NewMockPGManager(ctrl)
-		timelineHistories := []*pg.TimelineHistory{
+		timelineHistories := []*dbmgr.TimelineHistory{
 			{
 				TimelineID:  1,
 				SwitchPoint: 1,
@@ -345,7 +344,7 @@ func TestGetTimeLinesHistory(t *testing.T) {
 
 	t.Run("should return timeline history with last maxPostgresTimelinesHistory elements if timeline history length is greater than maxPostgresTimelinesHistory", func(t *testing.T) {
 		var timelineID uint64 = 4
-		pgState := &cluster.PostgresState{
+		pgState := &cluster.DBMSState{
 			TimelineID: timelineID,
 		}
 
@@ -353,7 +352,7 @@ func TestGetTimeLinesHistory(t *testing.T) {
 		defer ctrl.Finish()
 
 		pgm := pgmocks.NewMockPGManager(ctrl)
-		timelineHistories := []*pg.TimelineHistory{
+		timelineHistories := []*dbmgr.TimelineHistory{
 			{
 				TimelineID:  1,
 				SwitchPoint: 1,

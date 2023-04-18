@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/sorintlab/stolon/internal/dbmgr"
 	"io/ioutil"
 	"net"
 	"os"
@@ -52,7 +53,7 @@ const (
 )
 
 var (
-	defaultPGParameters = cluster.PGParameters{"log_destination": "stderr", "logging_collector": "false"}
+	defaultPGParameters = cluster.DBMSParameters{"log_destination": "stderr", "logging_collector": "false"}
 
 	defaultStoreTimeout = 1 * time.Second
 )
@@ -60,8 +61,8 @@ var (
 var curPort = MinPort
 var portMutex = sync.Mutex{}
 
-func pgParametersWithDefaults(p cluster.PGParameters) cluster.PGParameters {
-	pd := cluster.PGParameters{}
+func pgParametersWithDefaults(p cluster.DBMSParameters) cluster.DBMSParameters {
+	pd := cluster.DBMSParameters{}
 	for k, v := range defaultPGParameters {
 		pd[k] = v
 	}
@@ -99,14 +100,14 @@ func GetPGParameters(q Querier) (common.Parameters, error) {
 	return pgParameters, nil
 }
 
-func GetSystemData(q ReplQuerier) (*pg.SystemData, error) {
+func GetSystemData(q ReplQuerier) (*dbmgr.SystemData, error) {
 	rows, err := q.ReplQuery("IDENTIFY_SYSTEM")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	if rows.Next() {
-		var sd pg.SystemData
+		var sd dbmgr.SystemData
 		var xLogPosLsn string
 		var unused *string
 		if err = rows.Scan(&sd.SystemID, &sd.TimelineID, &xLogPosLsn, &unused); err != nil {
@@ -906,7 +907,7 @@ func StolonCtl(t *testing.T, clusterName string, storeBackend store.Backend, sto
 	go func() {
 		scanner := bufio.NewScanner(pr)
 		for scanner.Scan() {
-			t.Logf("[%s]: %s", "stolonctl", scanner.Text())
+			t.Logf("[%s]: %s", common.StolonName(clusterName), scanner.Text())
 		}
 	}()
 

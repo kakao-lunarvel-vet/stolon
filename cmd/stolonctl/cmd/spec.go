@@ -69,7 +69,7 @@ type ClusterSpecNoDefaults struct {
 	ExistingConfig                   *cluster.ExistingConfig   `json:"existingConfig,omitempty"`
 	StandbyConfig                    *cluster.StandbyConfig    `json:"standbyConfig,omitempty"`
 	DefaultSUReplAccessMode          *cluster.SUReplAccessMode `json:"defaultSUReplAccessMode,omitempty"`
-	PGParameters                     cluster.PGParameters      `json:"pgParameters,omitempty"`
+	PGParameters                     cluster.DBMSParameters    `json:"pgParameters,omitempty"`
 	PGHBA                            []string                  `json:"pgHBA,omitempty"`
 	AutomaticPgRestart               *bool                     `json:"automaticPgRestart,omitempty"`
 }
@@ -102,7 +102,7 @@ type ClusterSpecDefaults struct {
 	ExistingConfig                   *cluster.ExistingConfig   `json:"existingConfig"`
 	StandbyConfig                    *cluster.StandbyConfig    `json:"standbyConfig"`
 	DefaultSUReplAccessMode          *cluster.SUReplAccessMode `json:"defaultSUReplAccessMode"`
-	PGParameters                     cluster.PGParameters      `json:"pgParameters"`
+	PGParameters                     cluster.DBMSParameters    `json:"pgParameters"`
 	PGHBA                            []string                  `json:"pgHBA"`
 	AutomaticPgRestart               *bool                     `json:"automaticPgRestart"`
 }

@@ -75,7 +75,7 @@ func testPITR(t *testing.T, recoveryTarget bool) {
 		SleepInterval:      &cluster.Duration{Duration: 2 * time.Second},
 		FailInterval:       &cluster.Duration{Duration: 5 * time.Second},
 		ConvergenceTimeout: &cluster.Duration{Duration: 30 * time.Second},
-		PGParameters: pgParametersWithDefaults(cluster.PGParameters{
+		PGParameters: pgParametersWithDefaults(cluster.DBMSParameters{
 			"archive_mode":    "on",
 			"archive_command": fmt.Sprintf("cp %%p %s/%%f", archiveBackupDir),
 		}),
@@ -167,7 +167,7 @@ func testPITR(t *testing.T, recoveryTarget bool) {
 				RestoreCommand: fmt.Sprintf("cp %s/%%f %%p", archiveBackupDir),
 			},
 		},
-		PGParameters: pgParametersWithDefaults(cluster.PGParameters{
+		PGParameters: pgParametersWithDefaults(cluster.DBMSParameters{
 			"max_prepared_transactions": "100",
 		}),
 	}

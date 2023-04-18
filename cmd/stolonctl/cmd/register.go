@@ -29,12 +29,12 @@ import (
 	"go.uber.org/zap"
 )
 
-//Register command to register stolon master and slave for service discovery
+// Register command to register stolon master and slave for service discovery
 var Register = &cobra.Command{
-	Use:     "register",
-	Short:   "Register stolon keepers for service discovery",
-	Run:     runRegister,
-	Version: cmd.Version,
+	Use:   "register",
+	Short: "Register stolon keepers for service discovery",
+	Run:   runRegister,
+	//Version: cmd.Version,
 }
 
 var rCfg register.Config

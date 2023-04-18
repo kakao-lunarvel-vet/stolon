@@ -10,7 +10,7 @@ import (
 	reflect "reflect"
 )
 
-// MockPGManager is a mock of PGManager interface
+// MockPGManager is a mock of Manager interface
 type MockPGManager struct {
 	ctrl     *gomock.Controller
 	recorder *MockPGManagerMockRecorder

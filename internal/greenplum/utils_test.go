@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package postgresql
+package greenplum
 
 import (
-	"github.com/sorintlab/stolon/internal/dbmgr"
 	"reflect"
 	"testing"
 
@@ -25,16 +24,17 @@ import (
 func TestParseTimelineHistory(t *testing.T) {
 	tests := []struct {
 		contents string
+		tlsh     []*TimelineHistory
 		err      error
 	}{
 		{
 			contents: "",
-			tlsh:     []*dbmgr.TimelineHistory{},
+			tlsh:     []*TimelineHistory{},
 			err:      nil,
 		},
 		{
 			contents: `1	0/5000090	no recovery target specified`,
-			tlsh: []*dbmgr.TimelineHistory{
+			tlsh: []*TimelineHistory{
 				{
 					TimelineID:  1,
 					SwitchPoint: 83886224,

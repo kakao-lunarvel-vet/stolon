@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package postgresql
+package greenplum
 
 import (
 	"bufio"
@@ -320,7 +320,7 @@ func parseTimelinesHistory(contents string) ([]*dbmgr.TimelineHistory, error) {
 	return tlsh, err
 }
 
-func GetTimelinesHistory(ctx context.Context, timeline uint64, replConnParams ConnParams) ([]*dbmgr.TimelineHistory, error) {
+func getTimelinesHistory(ctx context.Context, timeline uint64, replConnParams ConnParams) ([]*dbmgr.TimelineHistory, error) {
 	// Add "replication=1" connection option
 	replConnParams["replication"] = "1"
 	db, err := sql.Open("postgres", replConnParams.ConnString())

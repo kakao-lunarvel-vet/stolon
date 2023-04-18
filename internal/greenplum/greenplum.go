@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package postgresql
+package greenplum
 
 import (
 	"bufio"
@@ -59,7 +59,7 @@ var (
 
 var log = slog.S()
 
-type PostgresManager struct {
+type GreenplumManager struct {
 	pgBinPath          string
 	dataDir            string
 	parameters         common.Parameters
@@ -79,22 +79,18 @@ type PostgresManager struct {
 	requestTimeout     time.Duration
 }
 
-func NewRecoveryOptions() *dbmgr.RecoveryOptions {
-	return &dbmgr.RecoveryOptions{RecoveryParameters: make(common.Parameters)}
-}
-
 func SetLogger(l *zap.SugaredLogger) {
 	log = l
 }
 
-func NewManager(pgBinPath string, dataDir string, localConnParams, replConnParams ConnParams, suAuthMethod, suUsername, suPassword, replAuthMethod, replUsername, replPassword string, requestTimeout time.Duration) *PostgresManager {
-	return &PostgresManager{
+func NewManager(pgBinPath string, dataDir string, localConnParams, replConnParams ConnParams, suAuthMethod, suUsername, suPassword, replAuthMethod, replUsername, replPassword string, requestTimeout time.Duration) *GreenplumManager {
+	return &GreenplumManager{
 		pgBinPath:          pgBinPath,
 		dataDir:            filepath.Join(dataDir, "postgres"),
 		parameters:         make(common.Parameters),
-		recoveryOptions:    NewRecoveryOptions(),
+		recoveryOptions:    dbmgr.NewRecoveryOptions(),
 		curParameters:      make(common.Parameters),
-		curRecoveryOptions: NewRecoveryOptions(),
+		curRecoveryOptions: dbmgr.NewRecoveryOptions(),
 		replConnParams:     replConnParams,
 		localConnParams:    localConnParams,
 		suAuthMethod:       suAuthMethod,
@@ -107,36 +103,36 @@ func NewManager(pgBinPath string, dataDir string, localConnParams, replConnParam
 	}
 }
 
-func (p *PostgresManager) SetParameters(parameters common.Parameters) {
+func (p *GreenplumManager) SetParameters(parameters common.Parameters) {
 	p.parameters = parameters
 }
 
-func (p *PostgresManager) CurParameters() common.Parameters {
+func (p *GreenplumManager) CurParameters() common.Parameters {
 	return p.curParameters
 }
 
-func (p *PostgresManager) SetRecoveryOptions(recoveryOptions *dbmgr.RecoveryOptions) {
+func (p *GreenplumManager) SetRecoveryOptions(recoveryOptions *dbmgr.RecoveryOptions) {
 	if recoveryOptions == nil {
-		p.recoveryOptions = NewRecoveryOptions()
+		p.recoveryOptions = dbmgr.NewRecoveryOptions()
 		return
 	}
 
 	p.recoveryOptions = recoveryOptions
 }
 
-func (p *PostgresManager) CurRecoveryOptions() *dbmgr.RecoveryOptions {
+func (p *GreenplumManager) CurRecoveryOptions() *dbmgr.RecoveryOptions {
 	return p.curRecoveryOptions
 }
 
-func (p *PostgresManager) SetHba(hba []string) {
+func (p *GreenplumManager) SetHba(hba []string) {
 	p.hba = hba
 }
 
-func (p *PostgresManager) CurHba() []string {
+func (p *GreenplumManager) CurHba() []string {
 	return p.curHba
 }
 
-func (p *PostgresManager) UpdateCurParameters() {
+func (p *GreenplumManager) UpdateCurParameters() {
 	n, err := copystructure.Copy(p.parameters)
 	if err != nil {
 		panic(err)
@@ -144,11 +140,11 @@ func (p *PostgresManager) UpdateCurParameters() {
 	p.curParameters = n.(common.Parameters)
 }
 
-func (p *PostgresManager) UpdateCurRecoveryOptions() {
+func (p *GreenplumManager) UpdateCurRecoveryOptions() {
 	p.curRecoveryOptions = p.recoveryOptions.DeepCopy()
 }
 
-func (p *PostgresManager) UpdateCurHba() {
+func (p *GreenplumManager) UpdateCurHba() {
 	n, err := copystructure.Copy(p.hba)
 	if err != nil {
 		panic(err)
@@ -156,7 +152,7 @@ func (p *PostgresManager) UpdateCurHba() {
 	p.curHba = n.([]string)
 }
 
-func (p *PostgresManager) Init(initConfig *dbmgr.InitConfig) error {
+func (p *GreenplumManager) Init(initConfig *dbmgr.InitConfig) error {
 	// ioutil.Tempfile already creates files with 0600 permissions
 	pwfile, err := ioutil.TempFile("", "pwfile")
 	if err != nil {
@@ -200,7 +196,7 @@ func (p *PostgresManager) Init(initConfig *dbmgr.InitConfig) error {
 	return nil
 }
 
-func (p *PostgresManager) Restore(command string) error {
+func (p *GreenplumManager) Restore(command string) error {
 	var err error
 	var cmd *exec.Cmd
 
@@ -231,7 +227,7 @@ out:
 
 // StartTmpMerged starts postgres with a conf file different than
 // postgresql.conf, including it at the start of the conf if it exists
-func (p *PostgresManager) StartTmpMerged() error {
+func (p *GreenplumManager) StartTmpMerged() error {
 	if err := p.writeConfs(true); err != nil {
 		return err
 	}
@@ -240,7 +236,7 @@ func (p *PostgresManager) StartTmpMerged() error {
 	return p.start("-c", fmt.Sprintf("config_file=%s", tmpPostgresConfPath))
 }
 
-func (p *PostgresManager) Start() error {
+func (p *GreenplumManager) Start() error {
 	if err := p.writeConfs(false); err != nil {
 		return err
 	}
@@ -252,7 +248,7 @@ func (p *PostgresManager) Start() error {
 // connections (i.e. it's waiting for some missing wals etc...).
 // Note that also on error an instance may still be active and, if needed,
 // should be manually stopped calling Stop.
-func (p *PostgresManager) start(args ...string) error {
+func (p *GreenplumManager) start(args ...string) error {
 	// pg_ctl for postgres < 10 with -w will exit after the timeout and return 0
 	// also if the instance isn't ready to accept connections, while for
 	// postgres >= 10 it will return a non 0 exit code making it impossible to
@@ -334,7 +330,7 @@ func (p *PostgresManager) start(args ...string) error {
 
 // Stop tries to stop an instance. An error will be returned if the instance isn't started, stop fails or
 // times out (60 second).
-func (p *PostgresManager) Stop(fast bool) error {
+func (p *GreenplumManager) Stop(fast bool) error {
 	log.Infow("stopping database")
 	name := filepath.Join(p.pgBinPath, "pg_ctl")
 	cmd := exec.Command(name, "stop", "-w", "-D", p.dataDir, "-o", "-c unix_socket_directories="+common.PgUnixSocketDirectories)
@@ -352,7 +348,7 @@ func (p *PostgresManager) Stop(fast bool) error {
 	return nil
 }
 
-func (p *PostgresManager) IsStarted() (bool, error) {
+func (p *GreenplumManager) IsStarted() (bool, error) {
 	name := filepath.Join(p.pgBinPath, "pg_ctl")
 	cmd := exec.Command(name, "status", "-D", p.dataDir, "-o", "-c unix_socket_directories="+common.PgUnixSocketDirectories)
 	_, err := cmd.CombinedOutput()
@@ -371,7 +367,7 @@ func (p *PostgresManager) IsStarted() (bool, error) {
 	return true, nil
 }
 
-func (p *PostgresManager) Reload() error {
+func (p *GreenplumManager) Reload() error {
 	log.Infow("reloading database configuration")
 
 	if err := p.writeConfs(false); err != nil {
@@ -398,7 +394,7 @@ func (p *PostgresManager) Reload() error {
 
 // StopIfStarted checks if the instance is started, then calls stop and
 // then check if the instance is really stopped
-func (p *PostgresManager) StopIfStarted(fast bool) error {
+func (p *GreenplumManager) StopIfStarted(fast bool) error {
 	// Stop will return an error if the instance isn't started, so first check
 	// if it's started
 	started, err := p.IsStarted()
@@ -426,7 +422,7 @@ func (p *PostgresManager) StopIfStarted(fast bool) error {
 	return nil
 }
 
-func (p *PostgresManager) Restart(fast bool) error {
+func (p *GreenplumManager) Restart(fast bool) error {
 	log.Infow("restarting database")
 	if err := p.StopIfStarted(fast); err != nil {
 		return err
@@ -437,7 +433,7 @@ func (p *PostgresManager) Restart(fast bool) error {
 	return nil
 }
 
-func (p *PostgresManager) WaitReady(timeout time.Duration) error {
+func (p *GreenplumManager) WaitReady(timeout time.Duration) error {
 	start := time.Now()
 	for timeout == 0 || time.Since(start) < timeout {
 		if err := p.Ping(); err == nil {
@@ -448,7 +444,7 @@ func (p *PostgresManager) WaitReady(timeout time.Duration) error {
 	return fmt.Errorf("timeout waiting for db ready")
 }
 
-func (p *PostgresManager) WaitRecoveryDone(timeout time.Duration) error {
+func (p *GreenplumManager) WaitRecoveryDone(timeout time.Duration) error {
 	maj, _, err := p.BinaryVersion()
 	if err != nil {
 		return fmt.Errorf("error fetching pg version: %v", err)
@@ -482,7 +478,7 @@ func (p *PostgresManager) WaitRecoveryDone(timeout time.Duration) error {
 	return fmt.Errorf("timeout waiting for db recovery")
 }
 
-func (p *PostgresManager) Promote() error {
+func (p *GreenplumManager) Promote() error {
 	log.Infow("promoting database")
 
 	name := filepath.Join(p.pgBinPath, "pg_ctl")
@@ -503,7 +499,7 @@ func (p *PostgresManager) Promote() error {
 	return nil
 }
 
-func (p *PostgresManager) SetupRoles() error {
+func (p *GreenplumManager) SetupRoles() error {
 	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
 	defer cancel()
 
@@ -544,13 +540,13 @@ func (p *PostgresManager) SetupRoles() error {
 	return nil
 }
 
-func (p *PostgresManager) GetSyncStandbys() ([]string, error) {
+func (p *GreenplumManager) GetSyncStandbys() ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
 	defer cancel()
 	return getSyncStandbys(ctx, p.localConnParams)
 }
 
-func (p *PostgresManager) GetReplicationSlots() ([]string, error) {
+func (p *GreenplumManager) GetReplicationSlots() ([]string, error) {
 	maj, _, err := p.PGDataVersion()
 	if err != nil {
 		return nil, err
@@ -561,19 +557,19 @@ func (p *PostgresManager) GetReplicationSlots() ([]string, error) {
 	return getReplicationSlots(ctx, p.localConnParams, maj)
 }
 
-func (p *PostgresManager) CreateReplicationSlot(name string) error {
+func (p *GreenplumManager) CreateReplicationSlot(name string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
 	defer cancel()
 	return createReplicationSlot(ctx, p.localConnParams, name)
 }
 
-func (p *PostgresManager) DropReplicationSlot(name string) error {
+func (p *GreenplumManager) DropReplicationSlot(name string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
 	defer cancel()
 	return dropReplicationSlot(ctx, p.localConnParams, name)
 }
 
-func (p *PostgresManager) BinaryVersion() (int, int, error) {
+func (p *GreenplumManager) BinaryVersion() (int, int, error) {
 	name := filepath.Join(p.pgBinPath, "postgres")
 	cmd := exec.Command(name, "-V")
 	log.Debugw("execing cmd", "cmd", cmd)
@@ -585,7 +581,7 @@ func (p *PostgresManager) BinaryVersion() (int, int, error) {
 	return ParseBinaryVersion(string(out))
 }
 
-func (p *PostgresManager) PGDataVersion() (int, int, error) {
+func (p *GreenplumManager) PGDataVersion() (int, int, error) {
 	fh, err := os.Open(filepath.Join(p.dataDir, "PG_VERSION"))
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to read PG_VERSION: %v", err)
@@ -601,7 +597,7 @@ func (p *PostgresManager) PGDataVersion() (int, int, error) {
 	return ParseVersion(version)
 }
 
-func (p *PostgresManager) IsInitialized() (bool, error) {
+func (p *GreenplumManager) IsInitialized() (bool, error) {
 	// List of required files or directories relative to postgres data dir
 	// From https://www.postgresql.org/docs/9.4/static/storage-file-layout.html
 	// with some additions.
@@ -663,7 +659,7 @@ func (p *PostgresManager) IsInitialized() (bool, error) {
 }
 
 // GetRole return the current instance role
-func (p *PostgresManager) GetRole() (common.Role, error) {
+func (p *GreenplumManager) GetRole() (common.Role, error) {
 	maj, _, err := p.BinaryVersion()
 	if err != nil {
 		return "", fmt.Errorf("error fetching pg version: %v", err)
@@ -692,7 +688,7 @@ func (p *PostgresManager) GetRole() (common.Role, error) {
 	}
 }
 
-func (p *PostgresManager) writeConfs(useTmpPostgresConf bool) error {
+func (p *GreenplumManager) writeConfs(useTmpPostgresConf bool) error {
 	maj, _, err := p.BinaryVersion()
 	if err != nil {
 		return fmt.Errorf("error fetching pg version: %v", err)
@@ -724,7 +720,7 @@ func (p *PostgresManager) writeConfs(useTmpPostgresConf bool) error {
 	return nil
 }
 
-func (p *PostgresManager) writeConf(useTmpPostgresConf, writeRecoveryParams bool) error {
+func (p *GreenplumManager) writeConf(useTmpPostgresConf, writeRecoveryParams bool) error {
 	confFile := postgresConf
 	if useTmpPostgresConf {
 		confFile = tmpPostgresConf
@@ -767,7 +763,7 @@ func (p *PostgresManager) writeConf(useTmpPostgresConf, writeRecoveryParams bool
 		})
 }
 
-func (p *PostgresManager) writeRecoveryConf() error {
+func (p *GreenplumManager) writeRecoveryConf() error {
 	// write recovery.conf only if recoveryMode is not none
 	if p.recoveryOptions.RecoveryMode == dbmgr.RecoveryModeNone {
 		return nil
@@ -789,7 +785,7 @@ func (p *PostgresManager) writeRecoveryConf() error {
 		})
 }
 
-func (p *PostgresManager) writeStandbySignal() error {
+func (p *GreenplumManager) writeStandbySignal() error {
 	// write standby.signal only if recoveryMode is standby
 	if p.recoveryOptions.RecoveryMode != dbmgr.RecoveryModeStandby {
 		return nil
@@ -803,7 +799,7 @@ func (p *PostgresManager) writeStandbySignal() error {
 		})
 }
 
-func (p *PostgresManager) writeRecoverySignal() error {
+func (p *GreenplumManager) writeRecoverySignal() error {
 	// write standby.signal only if recoveryMode is recovery
 	if p.recoveryOptions.RecoveryMode != dbmgr.RecoveryModeRecovery {
 		return nil
@@ -817,7 +813,7 @@ func (p *PostgresManager) writeRecoverySignal() error {
 		})
 }
 
-func (p *PostgresManager) writePgHba() error {
+func (p *GreenplumManager) writePgHba() error {
 	return common.WriteFileAtomicFunc(filepath.Join(p.dataDir, "pg_hba.conf"), 0600,
 		func(f io.Writer) error {
 			if p.hba != nil {
@@ -833,7 +829,7 @@ func (p *PostgresManager) writePgHba() error {
 
 // createPostgresqlAutoConf creates postgresql.auto.conf as a symlink to
 // /dev/null to block alter systems commands (they'll return an error)
-func (p *PostgresManager) createPostgresqlAutoConf() error {
+func (p *GreenplumManager) createPostgresqlAutoConf() error {
 	pgAutoConfPath := filepath.Join(p.dataDir, postgresAutoConf)
 	if err := os.Remove(pgAutoConfPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("error removing postgresql.auto.conf file: %v", err)
@@ -844,7 +840,7 @@ func (p *PostgresManager) createPostgresqlAutoConf() error {
 	return nil
 }
 
-func (p *PostgresManager) SyncFromFollowedPGRewind(followedConnParams ConnParams, password string) error {
+func (p *GreenplumManager) SyncFromFollowedPGRewind(followedConnParams ConnParams, password string) error {
 	// Remove postgresql.auto.conf since pg_rewind will error if it's a symlink to /dev/null
 	pgAutoConfPath := filepath.Join(p.dataDir, postgresAutoConf)
 	if err := os.Remove(pgAutoConfPath); err != nil && !os.IsNotExist(err) {
@@ -887,7 +883,7 @@ func (p *PostgresManager) SyncFromFollowedPGRewind(followedConnParams ConnParams
 	return nil
 }
 
-func (p *PostgresManager) SyncFromFollowed(followedConnParams ConnParams, replSlot string) error {
+func (p *GreenplumManager) SyncFromFollowed(followedConnParams ConnParams, replSlot string) error {
 	fcp := followedConnParams.Copy()
 
 	// ioutil.Tempfile already creates files with 0600 permissions
@@ -954,7 +950,7 @@ func (p *PostgresManager) SyncFromFollowed(followedConnParams ConnParams, replSl
 	return nil
 }
 
-func (p *PostgresManager) RemoveAll() error {
+func (p *GreenplumManager) RemoveAll() error {
 	initialized, err := p.IsInitialized()
 	if err != nil {
 		return fmt.Errorf("failed to retrieve instance state: %v", err)
@@ -973,31 +969,31 @@ func (p *PostgresManager) RemoveAll() error {
 	return os.RemoveAll(p.dataDir)
 }
 
-func (p *PostgresManager) GetSystemData() (*dbmgr.SystemData, error) {
+func (p *GreenplumManager) GetSystemData() (*dbmgr.SystemData, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
 	defer cancel()
 	return GetSystemData(ctx, p.replConnParams)
 }
 
-func (p *PostgresManager) GetTimelinesHistory(timeline uint64) ([]*dbmgr.TimelineHistory, error) {
+func (p *GreenplumManager) GetTimelinesHistory(timeline uint64) ([]*dbmgr.TimelineHistory, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
 	defer cancel()
-	return GetTimelinesHistory(ctx, timeline, p.replConnParams)
+	return getTimelinesHistory(ctx, timeline, p.replConnParams)
 }
 
-func (p *PostgresManager) GetConfigFilePGParameters() (common.Parameters, error) {
+func (p *GreenplumManager) GetConfigFilePGParameters() (common.Parameters, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
 	defer cancel()
 	return getConfigFilePGParameters(ctx, p.localConnParams)
 }
 
-func (p *PostgresManager) Ping() error {
+func (p *GreenplumManager) Ping() error {
 	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
 	defer cancel()
 	return ping(ctx, p.localConnParams)
 }
 
-func (p *PostgresManager) OlderWalFile() (string, error) {
+func (p *GreenplumManager) OlderWalFile() (string, error) {
 	maj, _, err := p.PGDataVersion()
 	if err != nil {
 		return "", err
@@ -1039,7 +1035,7 @@ func (p *PostgresManager) OlderWalFile() (string, error) {
 }
 
 // IsRestartRequired returns if a postgres restart is necessary
-func (p *PostgresManager) IsRestartRequired(changedParams []string) (bool, error) {
+func (p *GreenplumManager) IsRestartRequired(changedParams []string) (bool, error) {
 	maj, min, err := p.BinaryVersion()
 	if err != nil {
 		return false, fmt.Errorf("error fetching pg version: %v", err)

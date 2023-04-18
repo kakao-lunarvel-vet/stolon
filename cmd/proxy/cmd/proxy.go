@@ -22,7 +22,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sorintlab/pollon"
 	"github.com/sorintlab/stolon/cmd"
 	"github.com/sorintlab/stolon/internal/cluster"
 	"github.com/sorintlab/stolon/internal/common"
@@ -30,9 +32,6 @@ import (
 	slog "github.com/sorintlab/stolon/internal/log"
 	"github.com/sorintlab/stolon/internal/store"
 	"github.com/sorintlab/stolon/internal/util"
-
-	"github.com/davecgh/go-spew/spew"
-	"github.com/sorintlab/pollon"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -40,9 +39,9 @@ import (
 var log = slog.S()
 
 var CmdProxy = &cobra.Command{
-	Use:     "stolon-proxy",
-	Run:     proxy,
-	Version: cmd.Version,
+	Use: util.StolonBinNameProxy,
+	Run: proxy,
+	//Version: cmd.Version,
 }
 
 type config struct {

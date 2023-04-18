@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	pg "github.com/sorintlab/stolon/internal/postgresql"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -29,7 +30,6 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/sorintlab/stolon/internal/cluster"
 	"github.com/sorintlab/stolon/internal/common"
-	pg "github.com/sorintlab/stolon/internal/postgresql"
 	"github.com/sorintlab/stolon/internal/store"
 )
 
@@ -1698,7 +1698,7 @@ func TestStandbyCantSync(t *testing.T) {
 		SleepInterval:      &cluster.Duration{Duration: 2 * time.Second},
 		FailInterval:       &cluster.Duration{Duration: 5 * time.Second},
 		ConvergenceTimeout: &cluster.Duration{Duration: 30 * time.Second},
-		PGParameters: pgParametersWithDefaults(cluster.PGParameters{
+		PGParameters: pgParametersWithDefaults(cluster.DBMSParameters{
 			// Set max_wal_size, min_wal_size to a lower value so triggering a
 			// checkpoint will remove uneeded wals
 			"max_wal_size": "40MB",

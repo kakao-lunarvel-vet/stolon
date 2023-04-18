@@ -21,7 +21,7 @@ import (
 	"strconv"
 )
 
-func (p *Manager) GetSystemdID() (string, error) {
+func (p *PostgresManager) GetSystemdID() (string, error) {
 	pgControl, err := os.Open(filepath.Join(p.dataDir, "global", "pg_control"))
 	if err != nil {
 		return "", err

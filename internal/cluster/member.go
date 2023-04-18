@@ -48,9 +48,8 @@ type KeeperInfo struct {
 	ClusterUID string `json:"clusterUID,omitempty"`
 	BootUUID   string `json:"bootUUID,omitempty"`
 
-	PostgresBinaryVersion PostgresBinaryVersion `json:"postgresBinaryVersion,omitempty"`
-
-	PostgresState *PostgresState `json:"postgresState,omitempty"`
+	DBMSBinaryVersion DBMSBinaryVersion `json:"postgresBinaryVersion,omitempty"`
+	DBMSState         *DBMSState        `json:"postgresState,omitempty"`
 
 	CanBeMaster             *bool `json:"canBeMaster,omitempty"`
 	CanBeSynchronousReplica *bool `json:"canBeSynchronousReplica,omitempty"`
@@ -87,7 +86,7 @@ func (tlsh PostgresTimelinesHistory) GetTimelineHistory(id uint64) *PostgresTime
 	return nil
 }
 
-type PostgresState struct {
+type DBMSState struct {
 	UID        string `json:"uid,omitempty"`
 	Generation int64  `json:"generation,omitempty"`
 
@@ -106,7 +105,7 @@ type PostgresState struct {
 	OlderWalFile        string            `json:"olderWalFile,omitempty"`
 }
 
-func (p *PostgresState) DeepCopy() *PostgresState {
+func (p *DBMSState) DeepCopy() *DBMSState {
 	if p == nil {
 		return nil
 	}
@@ -117,7 +116,7 @@ func (p *PostgresState) DeepCopy() *PostgresState {
 	if !reflect.DeepEqual(p, np) {
 		panic("not equal")
 	}
-	return np.(*PostgresState)
+	return np.(*DBMSState)
 }
 
 type SentinelsInfo []*SentinelInfo

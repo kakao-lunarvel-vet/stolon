@@ -138,9 +138,9 @@ func (c *Config) Copy() *Config {
 	if c == nil {
 		return c
 	}
-	// Just copy by dereferencing c, the PGParameters map won't be a real deep copy.
+	// Just copy by dereferencing c, the DBMSParameters map won't be a real deep copy.
 	nc := *c
-	// Do a real deeep copy of the PGParameters map
+	// Do a real deeep copy of the DBMSParameters map
 	nm := map[string]string{}
 	for k, v := range c.PGParameters {
 		nm[k] = v

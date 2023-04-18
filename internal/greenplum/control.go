@@ -1,4 +1,4 @@
-// Copyright 2017 Sorint.lab
+// Copyright 2016 Sorint.lab
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,31 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package greenplum
 
 import (
-	"fmt"
-	"github.com/spf13/cobra"
+	"encoding/binary"
+	"os"
+	"path/filepath"
+	"strconv"
 )
 
-var (
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
-)
-
-func PrintVersion() {
-	fmt.Println("Git Commit Hash:", commit)
-	fmt.Println("UTC Build Time:", date)
-	fmt.Println("Release version:", version)
-}
-
-func RegisterVersionInfo(root *cobra.Command) {
-	cmd := &cobra.Command{
-		Use: "version",
-		Run: func(cmd *cobra.Command, args []string) {
-			PrintVersion()
-		},
+func (p *GreenplumManager) GetSystemdID() (string, error) {
+	pgControl, err := os.Open(filepath.Join(p.dataDir, "global", "pg_control"))
+	if err != nil {
+		return "", err
 	}
-	root.AddCommand(cmd)
+	var systemID uint64
+	err = binary.Read(pgControl, binary.LittleEndian, &systemID)
+	if err != nil {
+		return "", err
+	}
+	return strconv.FormatUint(systemID, 10), nil
 }

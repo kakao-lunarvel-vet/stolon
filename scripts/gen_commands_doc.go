@@ -37,7 +37,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := doc.GenMarkdownTree(keepercmd.CmdKeeper, outDir); err != nil {
+	if err := doc.GenMarkdownTree(keepercmd.RootCmd, outDir); err != nil {
 		log.Fatal(err)
 	}
 	if err := doc.GenMarkdownTree(sentinelcmd.CmdSentinel, outDir); err != nil {

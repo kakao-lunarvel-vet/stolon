@@ -53,9 +53,9 @@ const (
 )
 
 var CmdSentinel = &cobra.Command{
-	Use:     "stolon-sentinel",
-	Run:     sentinel,
-	Version: cmd.Version,
+	Use: util.StolonBinNameSentinel,
+	Run: sentinel,
+	// Version: cmd.ersion,
 }
 
 type config struct {
@@ -244,8 +244,8 @@ func (s *Sentinel) updateKeepersStatus(cd *cluster.ClusterData, keepersInfo clus
 			s.CleanKeeperError(keeperUID)
 			// Update keeper status infos
 			k.Status.BootUUID = ki.BootUUID
-			k.Status.PostgresBinaryVersion.Maj = ki.PostgresBinaryVersion.Maj
-			k.Status.PostgresBinaryVersion.Min = ki.PostgresBinaryVersion.Min
+			k.Status.DBBinVer.Maj = ki.DBMSBinaryVersion.Maj
+			k.Status.DBBinVer.Min = ki.DBMSBinaryVersion.Min
 		}
 	}
 
@@ -277,7 +277,7 @@ func (s *Sentinel) updateKeepersStatus(cd *cluster.ClusterData, keepersInfo clus
 			s.SetDBError(db.UID)
 			continue
 		}
-		dbs := k.PostgresState
+		dbs := k.DBMSState
 		if dbs == nil {
 			log.Warnw("no db state available", "db", db.UID, "keeper", db.Spec.KeeperUID)
 			s.SetDBError(db.UID)
@@ -305,7 +305,7 @@ func (s *Sentinel) updateKeepersStatus(cd *cluster.ClusterData, keepersInfo clus
 			db.Status.TimelineID = dbs.TimelineID
 			db.Status.XLogPos = dbs.XLogPos
 			db.Status.TimelinesHistory = dbs.TimelinesHistory
-			db.Status.PGParameters = cluster.PGParameters(dbs.PGParameters)
+			db.Status.DBMSParameters = cluster.DBMSParameters(dbs.PGParameters)
 
 			db.Status.CurSynchronousStandbys = dbs.SynchronousStandbys
 
@@ -828,7 +828,7 @@ func (s *Sentinel) updateCluster(cd *cluster.ClusterData, pis cluster.ProxiesInf
 
 						// Replace reported pg parameters in cluster spec
 						if *clusterSpec.MergePgParameters {
-							newcd.Cluster.Spec.PGParameters = db.Status.PGParameters
+							newcd.Cluster.Spec.PGParameters = db.Status.DBMSParameters
 						}
 						// Cluster initialized, switch to Normal state
 						newcd.Cluster.Status.Phase = cluster.ClusterPhaseNormal
@@ -883,7 +883,7 @@ func (s *Sentinel) updateCluster(cd *cluster.ClusterData, pis cluster.ProxiesInf
 					db.Spec.IncludeConfig = false
 					// Replace reported pg parameters in cluster spec
 					if *clusterSpec.MergePgParameters {
-						newcd.Cluster.Spec.PGParameters = db.Status.PGParameters
+						newcd.Cluster.Spec.PGParameters = db.Status.DBMSParameters
 					}
 					// Cluster initialized, switch to Normal state
 					newcd.Cluster.Status.Phase = cluster.ClusterPhaseNormal
@@ -942,7 +942,7 @@ func (s *Sentinel) updateCluster(cd *cluster.ClusterData, pis cluster.ProxiesInf
 
 						// Replace reported pg parameters in cluster spec
 						if *clusterSpec.MergePgParameters {
-							newcd.Cluster.Spec.PGParameters = db.Status.PGParameters
+							newcd.Cluster.Spec.PGParameters = db.Status.DBMSParameters
 						}
 						// Cluster initialized, switch to Normal state
 						newcd.Cluster.Status.Phase = cluster.ClusterPhaseNormal
@@ -1210,8 +1210,8 @@ func (s *Sentinel) updateCluster(cd *cluster.ClusterData, pis cluster.ProxiesInf
 					// can there be a time window where we cannot elect the
 					// synchronous standby as a new primary if it's not yet in
 					// sync
-					if masterDBKeeper.Status.PostgresBinaryVersion.Maj != 0 {
-						if masterDBKeeper.Status.PostgresBinaryVersion.Maj == 9 && masterDBKeeper.Status.PostgresBinaryVersion.Min <= 5 {
+					if masterDBKeeper.Status.DBBinVer.Maj != 0 {
+						if masterDBKeeper.Status.DBBinVer.Maj == 9 && masterDBKeeper.Status.DBBinVer.Min <= 5 {
 							minSynchronousStandbys = 1
 							maxSynchronousStandbys = 1
 							merge = false

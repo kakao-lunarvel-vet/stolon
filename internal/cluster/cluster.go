@@ -17,6 +17,7 @@ package cluster
 import (
 	"encoding/json"
 	"fmt"
+	util "github.com/sorintlab/stolon/internal/postgresql"
 	"reflect"
 	"sort"
 	"strings"
@@ -24,7 +25,6 @@ import (
 
 	"github.com/mitchellh/copystructure"
 	"github.com/sorintlab/stolon/internal/common"
-	util "github.com/sorintlab/stolon/internal/postgresql"
 )
 
 func Uint16P(u uint16) *uint16 {
@@ -76,7 +76,7 @@ const (
 	InitialGeneration int64 = 1
 )
 
-type PGParameters map[string]string
+type DBMSParameters map[string]string
 
 type FollowType string
 
@@ -88,15 +88,13 @@ const (
 )
 
 type FollowConfig struct {
-	Type FollowType `json:"type,omitempty"`
-	// Keeper ID to follow when Type is "internal"
-	DBUID string `json:"dbuid,omitempty"`
-	// Standby settings when Type is "external"
-	StandbySettings         *StandbySettings         `json:"standbySettings,omitempty"`
+	Type                    FollowType               `json:"type,omitempty"`
+	DBUID                   string                   `json:"dbuid,omitempty"`           // Keeper ID to follow when Type is "internal"
+	StandbySettings         *StandbySettings         `json:"standbySettings,omitempty"` // Standby settings when Type is "external"
 	ArchiveRecoverySettings *ArchiveRecoverySettings `json:"archiveRecoverySettings,omitempty"`
 }
 
-type PostgresBinaryVersion struct {
+type DBMSBinaryVersion struct {
 	Maj int
 	Min int
 }
@@ -285,7 +283,7 @@ type ClusterSpec struct {
 	// Default is "all"
 	DefaultSUReplAccessMode *SUReplAccessMode `json:"defaultSUReplAccessMode,omitempty"`
 	// Map of postgres parameters
-	PGParameters PGParameters `json:"pgParameters,omitempty"`
+	PGParameters DBMSParameters `json:"pgParameters,omitempty"`
 	// Additional pg_hba.conf entries
 	// we don't set omitempty since we want to distinguish between null or empty slice
 	PGHBA []string `json:"pgHBA"`
@@ -572,7 +570,7 @@ type KeeperStatus struct {
 
 	BootUUID string `json:"bootUUID,omitempty"`
 
-	PostgresBinaryVersion PostgresBinaryVersion `json:"postgresBinaryVersion,omitempty"`
+	DBBinVer DBMSBinaryVersion `json:"postgresBinaryVersion,omitempty"`
 
 	ForceFail bool `json:"forceFail,omitempty"`
 
@@ -615,46 +613,34 @@ func (kss Keepers) SortedKeys() []string {
 }
 
 type DBSpec struct {
-	// The KeeperUID this db is assigned to
-	KeeperUID string `json:"keeperUID,omitempty"`
-	// Time after which any request (keepers checks from sentinel etc...) will fail.
-	RequestTimeout Duration `json:"requestTimeout,omitempty"`
-	// See ClusterSpec MaxStandbys description
-	MaxStandbys uint16 `json:"maxStandbys,omitempty"`
-	// Use Synchronous replication between master and its standbys
-	SynchronousReplication bool `json:"synchronousReplication,omitempty"`
-	// Whether to use pg_rewind
-	UsePgrewind bool `json:"usePgrewind,omitempty"`
+	KeeperUID              string   `json:"keeperUID,omitempty"`              // The KeeperUID this db is assigned to
+	RequestTimeout         Duration `json:"requestTimeout,omitempty"`         // Time after which any request (keepers checks from sentinel etc...) will fail.
+	MaxStandbys            uint16   `json:"maxStandbys,omitempty"`            // See ClusterSpec MaxStandbys description
+	SynchronousReplication bool     `json:"synchronousReplication,omitempty"` // Use Synchronous replication between master and its standbys
+	UsePgrewind            bool     `json:"usePgrewind,omitempty"`            // Whether to use pg_rewind
 	// AdditionalWalSenders defines the number of additional wal_senders in
 	// addition to the ones internally defined by stolon
 	AdditionalWalSenders uint16 `json:"additionalWalSenders"`
+
 	// AdditionalReplicationSlots is a list of additional replication slots.
 	// Replication slots not defined here will be dropped from the instance
 	// (i.e. manually created replication slots will be removed).
-	AdditionalReplicationSlots []string `json:"additionalReplicationSlots"`
-	// InitMode defines the db initialization mode. Current modes are: none, new
-	InitMode DBInitMode `json:"initMode,omitempty"`
-	// Init configuration used when InitMode is "new"
-	NewConfig *NewConfig `json:"newConfig,omitempty"`
-	// Point in time recovery init configuration used when InitMode is "pitr"
-	PITRConfig *PITRConfig `json:"pitrConfig,omitempty"`
-	// Map of postgres parameters
-	PGParameters PGParameters `json:"pgParameters,omitempty"`
+	AdditionalReplicationSlots []string       `json:"additionalReplicationSlots"`
+	InitMode                   DBInitMode     `json:"initMode,omitempty"`     // InitMode defines the db initialization mode. Current modes are: none, new
+	NewConfig                  *NewConfig     `json:"newConfig,omitempty"`    // Init configuration used when InitMode is "new"
+	PITRConfig                 *PITRConfig    `json:"pitrConfig,omitempty"`   // Point in time recovery init configuration used when InitMode is "pitr"
+	PGParameters               DBMSParameters `json:"pgParameters,omitempty"` // Map of postgres parameters
+
 	// Additional pg_hba.conf entries
 	// We don't set omitempty since we want to distinguish between null or empty slice
 	PGHBA []string `json:"pgHBA"`
-	// DB Role (master or standby)
-	Role common.Role `json:"role,omitempty"`
-	// FollowConfig when Role is "standby"
-	FollowConfig *FollowConfig `json:"followConfig,omitempty"`
-	// Followers DB UIDs
-	Followers []string `json:"followers"`
-	// Whether to include previous postgresql.conf
-	IncludeConfig bool `json:"includePreviousConfig,omitempty"`
-	// SynchronousStandbys are the standbys to be configured as synchronous
-	SynchronousStandbys []string `json:"synchronousStandbys"`
-	// External SynchronousStandbys are external standbys names to be configured as synchronous
-	ExternalSynchronousStandbys []string `json:"externalSynchronousStandbys"`
+
+	Role                        common.Role   `json:"role,omitempty"`                  // DB Role (master or standby)
+	FollowConfig                *FollowConfig `json:"followConfig,omitempty"`          // FollowConfig when Role is "standby"
+	Followers                   []string      `json:"followers"`                       // Followers DB UIDs
+	IncludeConfig               bool          `json:"includePreviousConfig,omitempty"` // Whether to include previous postgresql.conf
+	SynchronousStandbys         []string      `json:"synchronousStandbys"`             // SynchronousStandbys are the standbys to be configured as synchronous
+	ExternalSynchronousStandbys []string      `json:"externalSynchronousStandbys"`     // External SynchronousStandbys are external standbys names to be configured as synchronous
 }
 
 type DBStatus struct {
@@ -670,7 +656,7 @@ type DBStatus struct {
 	XLogPos          uint64                   `json:"xLogPos,omitempty"`
 	TimelinesHistory PostgresTimelinesHistory `json:"timelinesHistory,omitempty"`
 
-	PGParameters PGParameters `json:"pgParameters,omitempty"`
+	DBMSParameters DBMSParameters `json:"pgParameters,omitempty"`
 
 	// DBUIDs of the internal standbys currently reported as in sync by the instance
 	CurSynchronousStandbys []string `json:"-"`

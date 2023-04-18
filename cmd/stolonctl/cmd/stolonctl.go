@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/sorintlab/stolon/internal/util"
 	"os"
 	"strings"
 
@@ -34,11 +35,11 @@ const (
 )
 
 var CmdStolonCtl = &cobra.Command{
-	Use:     "stolonctl",
-	Short:   "stolon command line client",
-	Version: cmd.Version,
+	Use:   util.StolonBinNameCtl,
+	Short: "stolon command line client",
+	//Version: cmd.Version,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		if c.Name() != "stolonctl" && c.Name() != "version" {
+		if c.Name() != util.StolonBinNameCtl && c.Name() != "version" {
 			if err := cmd.CheckCommonConfig(&cfg.CommonConfig); err != nil {
 				die(err.Error())
 			}
@@ -60,8 +61,10 @@ func init() {
 }
 
 var cmdVersion = &cobra.Command{
-	Use:   "version",
-	Run:   versionCommand,
+	Use: "version",
+	Run: func(ccmd *cobra.Command, args []string) {
+		cmd.PrintVersion()
+	},
 	Short: "Display the version",
 }
 
@@ -70,7 +73,7 @@ func init() {
 }
 
 func versionCommand(c *cobra.Command, args []string) {
-	stdout("stolonctl version %s", cmd.Version)
+	cmd.PrintVersion()
 }
 
 func Execute() {

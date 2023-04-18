@@ -43,9 +43,10 @@ type ComponentLabelValue string
 const (
 	DefaultComponentLabel = "component"
 
-	KeeperLabelValue   ComponentLabelValue = "stolon-keeper"
-	SentinelLabelValue ComponentLabelValue = "stolon-sentinel"
-	ProxyLabelValue    ComponentLabelValue = "stolon-proxy"
+	KeeperLabelValue   ComponentLabelValue = util.StolonBinNameKeeper
+	SentinelLabelValue ComponentLabelValue = util.StolonBinNameSentinel
+	ProxyLabelValue    ComponentLabelValue = util.StolonBinNameProxy
+	CtlLabelValue      ComponentLabelValue = util.StolonBinNameCtl
 )
 
 type KubeStore struct {
@@ -376,7 +377,7 @@ func NewKubeElection(kubecli *kubernetes.Clientset, podName, namespace, clusterN
 		nil,
 		resourcelock.ResourceLockConfig{
 			Identity:      candidateUID,
-			EventRecorder: createRecorder(kubecli, "stolon-sentinel", namespace),
+			EventRecorder: createRecorder(kubecli, util.StolonBinNameSentinel, namespace),
 		})
 	if err != nil {
 		return nil, fmt.Errorf("error creating lock: %v", err)
